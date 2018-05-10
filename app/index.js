@@ -8,6 +8,10 @@
 var http = require('http');
 var url = require('url');
 var StringDecoder = require('string_decoder').StringDecoder
+
+//relative imports
+var config = require('./config');
+
 //The server should respond to all requests with a string
 var server = http.createServer(function(req,res){
     // Get the Url and parse it
@@ -59,6 +63,7 @@ var server = http.createServer(function(req,res){
        payloadString =JSON.stringify(payload);
 
        //return the response
+       res.setHeader('Content-Type','application/json')
        res.writeHead(statusCode);
        res.end(payloadString);
        //log the request path
@@ -69,8 +74,8 @@ var server = http.createServer(function(req,res){
 });
 
 //Listen to a port
-server.listen(3000,function(){
-  console.log('server started');
+server.listen(config.port, function(){
+  console.log('server started on port',config.port + 'in environment'+ config.envName);
 });
 
 //Define handlers
