@@ -24,8 +24,27 @@ handlers.users = function(data, callback){
 handlers._users = {};
 
 //users - get
+//required data - phone
+//optional data - none
+// @TODO only let the authenticated users access this and access there data
 handlers._users.get = function(data, callback){
+  var phone = typeof(data.queryStringObject.phone)== 'string' && data.queryStringObject.phone.trim().length==10 ? data.queryStringObject.phone.trim():false;
+  console.log('this is the query phon',phone);
+  if(phone){
+    //look-up user
+    _data.read('users',phone, function(err,data){
+      if(!err && data){
+        // remove the hashed password
+        delete data.hashedPassword;
+        callback(200, data);
+      }else{
+        callback(404);
+      }
+    })
 
+  }else{
+    callback(400,{'Error':'no such user'});
+  }
 };
 
 //users - post

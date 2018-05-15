@@ -49,7 +49,6 @@ var unifiedServer = function(req,res){
 
   // Get the query string as an object
   var queryStringObject = parsedUrl.query;
-
   // Get the HTTP method
   var method = req.method.toLowerCase();
 
