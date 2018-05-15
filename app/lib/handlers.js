@@ -231,13 +231,60 @@ handlers._tokens.post = function(data, callback){
 }
 
 //tokens get
+//Required data - ID
+//optional data - none
+
 handlers._tokens.get = function(data, callback){
-  
+  //
+  var id = typeof(data.queryStringObject.id)== 'string' && data.queryStringObject.id.trim().length==20 ? data.queryStringObject.id.trim():false;
+  if(id){
+    //look-up token
+    _data.read('tokens',id, function(err,tokenData){
+      if(!err && data){
+        callback(200, tokenData);
+      }else{
+        callback(404);
+      }
+    })
+
+  }else{
+    callback(400,{'Error':'no such user'});
+  }
 }
 
 //tokens put
+//Required - id,extend
+//optional data - none
 handlers._tokens.put = function(data, callback){
-  
+  var id = typeof(data.payload.id) === 'string' && data.payload.id.trim().length==20 ? data.payload.id.trim() : false;
+  var extend = typeof(data.payload.extend) === 'boolean' && data.payload.extend==true ? true : false;
+  if(id && extend){
+    //look up the tokens
+    _data.read('tokens',id,function(err, tokenData){
+      if(!err && tokenData){
+        //check to make sure token is not expired
+        if(tokenData.expires > Date.now()){
+         //set the expiration an hour from now
+         tokenData.expires =Date.now() + 1000 * 60 * 60;
+         //store the new updates
+         _data.update('tokens',id,tokenData, function(err){
+           if(!err){
+             callback(200);
+           }else{
+             callback(500, {'Error':'Internal server error'});
+           }
+         });
+        }else{
+          callback(401,{'Erro':'token has already expired'});
+        }
+      }else{
+        callback(404,'no such user');
+      }
+    });
+  }else{
+    callback(400,{'Erro':'No such token or invalid fields'});
+  }
+
 }
 
 //tokens delete
