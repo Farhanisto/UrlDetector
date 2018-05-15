@@ -29,7 +29,6 @@ handlers._users = {};
 // @TODO only let the authenticated users access this and access there data
 handlers._users.get = function(data, callback){
   var phone = typeof(data.queryStringObject.phone)== 'string' && data.queryStringObject.phone.trim().length==10 ? data.queryStringObject.phone.trim():false;
-  console.log('this is the query phon',phone);
   if(phone){
     //look-up user
     _data.read('users',phone, function(err,data){
@@ -100,9 +99,54 @@ handlers._users.post = function(data, callback){
 };
 
 //users - put
+//Required data - phone
+//optional data -firstName, lastName, password (at least one must be provided)
+//@TODO only let authenticated users update there information ONLY
 handlers._users.put = function(data, callback){
+  //Check for the required field
+  var phone = typeof(data.payload.phone)== 'string' && data.payload.phone.trim().length==10 ? data.payload.phone.trim():false;
+  //Check for optional fields
+  var firstName = typeof(data.payload.firstName) === 'string' && data.payload.firstName.trim().length >0 ? data.payload.firstName.trim() : false;
+  var lastName = typeof(data.payload.lastName) === 'string' && data.payload.lastName.trim().length >0 ? data.payload.lastName.trim() : false;
+  var password = typeof(data.payload.password) === 'string' && data.payload.password.trim().length >0 ? data.payload.password.trim() : false;
   
-};
+  if (phone){
+    if (firstName || lastName || password){
+      //lookup users
+      _data.read('users',phone, function(err, userData){
+        if(!err && userData){
+          if(firstName){
+            userData.firstName = firstName;
+          }
+          if(lastName){
+            userData.lastName = lastName;
+          }
+          if(password){
+            userData.hashedPassword = helpers.hash(password);
+          }
+          //store the updates on disk
+          _data.update('users', phone,userData, function(err){
+            if (!err){
+              callback(200);
+            }else{
+              console.log(err);
+              callback(500, {'error ': 'Internal server error'});
+            }
+          })
+        }else{
+          callback(400, {'Error': 'specified user does not exist'});
+        }
+
+      });
+ 
+    }else{
+      callback(400,{'error':'Missing fields to update'});
+    }
+
+  }else{
+    callback(400,{'Error': 'Missing required fields'});
+  }
+}
 
 //users - delete
 handlers._users.delete = function(data, callback){
