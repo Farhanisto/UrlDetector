@@ -149,7 +149,29 @@ handlers._users.put = function(data, callback){
 }
 
 //users - delete
+//required field - phone
+//@TODO only let an authenticated user delete there data
+//@TODO deleted related data
 handlers._users.delete = function(data, callback){
+  var phone = typeof(data.queryStringObject.phone)== 'string' && data.queryStringObject.phone.trim().length==10 ? data.queryStringObject.phone.trim():false;
+  if(phone){
+    _data.read('users',phone,function(err,userData){
+      if(!err && userData){
+        _data.delete('users',phone, function(err){
+           if(!err){
+             callback(200);
+           }else{
+             callback(500, {'Error': 'Internal server error'})
+           }
+        });
+      }else{
+        callback(404, {'ERROR':'could not find the user'});
+      }
+    })
+
+  }else{
+    callback(400, {'Error':'Missing required field'})
+  }
   
 };
 
