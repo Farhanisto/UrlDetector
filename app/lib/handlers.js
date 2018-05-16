@@ -446,7 +446,6 @@ handlers._checks.get = function(data, callback){
   //check that the id is valid
   var id = typeof(data.queryStringObject.id)== 'string' && data.queryStringObject.id.trim().length==20 ? data.queryStringObject.id.trim():false;
   //Lookup the check
-  console.log('this is the id ',id)
   if(id){
     _data.read('checks',id,function(err, checkData){
       if(!err && checkData){
@@ -471,6 +470,65 @@ handlers._checks.get = function(data, callback){
   }
 };
 
+//Check- put
+//Required data - id
+//Optional data- protocol,url,method, successCodes, timeoutSeconds(one must be provided)
+handlers._checks.put = function(data, callback){
+  var id = typeof(data.payload.id)== 'string' && data.payload.id.trim().length==20 ? data.payload.id.trim():false;
+  //Check for optional fields
+  var protocol = typeof(data.payload.protocol) === 'string' && ['https','http'].indexOf(data.payload.protocol)>-1 ? data.payload.protocol.trim() : false;
+  var url = typeof(data.payload.url) === 'string' && data.payload.url.trim().length > 0 ? data.payload.url.trim() : false;
+  var method = typeof(data.payload.method) === 'string' && ['get','delete','put','post'].indexOf(data.payload.method)>-1 ? data.payload.method.trim() : false;
+  var successCodes = typeof(data.payload.successCodes) === 'object' && data.payload.successCodes instanceof Array && data.payload.successCodes.length>0 ? data.payload.successCodes : false;
+  var timeOutSeconds = typeof(data.payload.timeOutSeconds) === 'number' && data.payload.timeOutSeconds%1==0 && data.payload.timeOutSeconds>=1 && data.payload.timeOutSeconds<=5 ? data.payload.timeOutSeconds : false;
+  
+  if (id){
+    if(protocol||url||method||successCodes||timeOutSeconds){
+     _data.read('checks',id, function(err, checkData){
+       if(!err && checkData){
+        //Get the token from the headers
+        var token = typeof(data.headers.token)== 'string' ? data.headers.token :false;
+       //verify the token is valid
+       handlers._tokens.verify(token,id,function(tokenIsValid){
+         if(tokenIsValid){
+           if(protocol){
+             checkData.protocol = protocol;
+           }
+           if(url){
+             checkData.url =url;
+           }
+           if(method){
+            checkData.method =method;
+          }
+          if(successCodes){
+            checkData.successCodes =successCodes;
+          }
+          if(timeOutSeconds){
+            checkData.timeOutSeconds =timeOutSeconds;
+          }
+          _data.update('checks',id,checkData,function(err){
+            if(!err){
+             callback(200);
+            }else{
+              callback(500, {'Error':'Internal server error'});
+            }
+          });
+         }else{
+           callback(403, {'Error':'An authorized'});
+         }
+       });
+       }else{
+         callback(404, {'Error': 'Not Found'});
+       }
+     });
+    }else{
+      callback(400,{'Error':'Missing data to update'});
+    }
+  }else{
+    callback(400,{'Error':'Wrong check'});
+  }
+
+}
 // ping handler
 handlers.ping = function(data,callback){
     callback(200);
