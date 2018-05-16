@@ -438,6 +438,39 @@ handlers._checks.post = function(data, callback){
     callback(400,{'Error':'Missing required values'});
   }
 };
+
+//Checks get
+//Required data -id
+//optional data -none
+handlers._checks.get = function(data, callback){
+  //check that the id is valid
+  var id = typeof(data.queryStringObject.id)== 'string' && data.queryStringObject.id.trim().length==20 ? data.queryStringObject.id.trim():false;
+  //Lookup the check
+  console.log('this is the id ',id)
+  if(id){
+    _data.read('checks',id,function(err, checkData){
+      if(!err && checkData){
+       //Get the token from the headers
+     var token = typeof(data.headers.token)== 'string' ? data.headers.token :false;
+     //verify the token is valid and belongs to the user who created the check
+     handlers._tokens.verify(token,checkData.userPhone,function(tokenIsValid){
+      if(tokenIsValid){
+       // Return the checked data
+       callback(200,checkData);
+      }else{
+        callback(403,'token is invalid');
+      }
+     });
+      }else{
+        callback(404, {'Error':'No such check'})
+      }
+    });
+    
+  }else{
+    callback(400,{'Error':'no such user'});
+  }
+};
+
 // ping handler
 handlers.ping = function(data,callback){
     callback(200);
