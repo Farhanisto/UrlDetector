@@ -165,7 +165,6 @@ handlers._users.put = function(data, callback){
 
 //users - delete
 //required field - phone
-//@TODO deleted related data
 handlers._users.delete = function(data, callback){
   var phone = typeof(data.queryStringObject.phone)== 'string' && data.queryStringObject.phone.trim().length==10 ? data.queryStringObject.phone.trim():false;
   if(phone){
@@ -178,7 +177,33 @@ handlers._users.delete = function(data, callback){
           if(!err && userData){
             _data.delete('users',phone, function(err){
                if(!err){
-                 callback(200);
+                 //Delete all the checks associated with the user
+                 var userChecks = typeof(userData.checks) == 'object' && userData.checks instanceof Array ? userData.checks: [];
+                 var checksToDelete= userChecks.length;    
+                 if(checksToDelete>0){
+                   var checksDeleted = 0;
+                   var deletionErrors =false;
+                   //Loop through the checks
+                   userCheck.forEach(function(checkId) {
+                     //delete the check
+                     _data.delete('checks',checkId,function(err){
+                       if(err){
+                         deletionErrors = true;
+                       }
+                      checksDeleted ++;
+                      if(checksDeleted == checksToDelete){
+                        if(!deletionErrors){
+                           callback(200);
+                        }else{
+                          callback(500,{'Error':'errors encounted while attempting to delete all checks may not have been deleted successfully.'})
+                        }
+                      }
+                
+                     });
+                   });
+                 } else{
+                  callback(200);
+                 }
                }else{
                  callback(500, {'Error': 'Internal server error'})
                }
@@ -529,6 +554,63 @@ handlers._checks.put = function(data, callback){
   }
 
 }
+
+//check- delete
+//Required data- id
+//optional data- none
+handlers._checks.delete = function(data, callback){
+  var id = typeof(data.queryStringObject.id)== 'string' && data.queryStringObject.id.trim().length==20 ? data.queryStringObject.id.trim():false;
+  if(id){
+     //lookup the check
+     _data.read('checks',id,function(err, checkData){
+       if(!err && checkData){
+         //Get the token from the headers
+     var token = typeof(data.headers.token)== 'string' ? data.headers.token :false;
+     //verify the token is valid
+    handlers._tokens.verify(token,checkData.userPhone,function(tokenIsValid){
+      if(tokenIsValid){
+        _data.delete('checks',id,function(err){
+         if(!err){
+          _data.read('users',checkData.userPhone,function(err,userData){
+            if(!err && userData){
+              var userChecks = typeof(userData.checks) == 'object' && userData.checks instanceof Array ? userData.checks: [];
+              var checkPosition = userChecks.indexOf(id);
+              if (checkPosition>-1){
+                userChecks.splice(checkPosition,1);
+                //Resave the user data
+                _data.update('users',userData.userPhone, function(err){
+                  if(!err){
+                    callback(200);
+                  }else{
+                    callback(500, {'Error': 'Internal server error'})
+                  }
+               });
+              }else{
+                callback(404,{'Error':'Could not find the check'});
+              }
+            }else{
+              callback(404, {'ERROR':'could not find the user'});
+            }
+          });
+         }else{
+           callback(500,{'Error':'could not delete the check unable to find the user who created the check'});
+         }
+        }); 
+      }else{
+        callback(403,{'Error':'Invalid token'})
+      }
+    });
+       }else{
+         callback(404,{'Error':'not found'})
+       }
+     });
+    
+  }else{
+    callback(400, {'Error':'Missing required field'})
+  }
+  
+};
+
 // ping handler
 handlers.ping = function(data,callback){
     callback(200);
