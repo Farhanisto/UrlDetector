@@ -6,6 +6,7 @@
 //dependancies
 var _data = require('./data');
 var helpers = require('./helpers');
+var config = require('./config');
 
 // Define all the handlers
 var handlers = {};
@@ -351,6 +352,92 @@ handlers._tokens.verify = function(id,phone,callback){
     }
   });
 }
+
+// Checks handler
+handlers.checks = function(data, callback){
+  var acceptableMethods = ['post','get','delete','put'];
+  if (acceptableMethods.indexOf(data.method) > -1){
+    handlers._checks[data.method](data, callback);
+  }else{
+    callback(405);
+  };
+};
+
+//Container for all the checks methods
+handlers._checks = {};
+
+//Checks post
+//Required data- protocol,url,method,successCodes,timeOutSeconds
+//optional data- none
+handlers._checks.post = function(data, callback){
+  var protocol = typeof(data.payload.protocol) === 'string' && ['https','http'].indexOf(data.payload.protocol)>-1 ? data.payload.protocol.trim() : false;
+  var url = typeof(data.payload.url) === 'string' && data.payload.url.trim().length > 0 ? data.payload.url.trim() : false;
+  var method = typeof(data.payload.method) === 'string' && ['get','delete','put','post'].indexOf(data.payload.method)>-1 ? data.payload.method.trim() : false;
+  var successCodes = typeof(data.payload.successCodes) === 'object' && data.payload.successCodes instanceof Array && data.payload.successCodes.length>0 ? data.payload.successCodes : false;
+  var timeOutSeconds = typeof(data.payload.timeOutSeconds) === 'number' && data.payload.timeOutSeconds%1==0 && data.payload.timeOutSeconds>=1 && data.payload.timeOutSeconds<=5 ? data.payload.timeOutSeconds : false;
+  
+  if(protocol,url,method,successCodes,timeOutSeconds){
+    //Get the token from the headers
+    var token = typeof(data.headers.token) == 'string'?data.headers.token : false;
+    //Lookup  the user by reading the token
+    _data.read('tokens',token, function(err,tokenData){
+      if(!err && tokenData){
+       var userPhone = tokenData.phone;
+       //Lookup the user data 
+       _data.read('users',userPhone, function(err, userData){
+         if(!err && userData){
+           var userChecks = typeof(userData.checks) == 'object' && userData.checks instanceof Array ? userData.checks: [];
+           console.log(userChecks);
+           //Verify that the user has less than the max checks per user
+           if(userChecks.length < config.maxChecks){
+            //Create random string for the id 
+            var checkId = helpers.createRandomString(20);
+            
+            //Create the check object and include the users phone
+            var checkObj={
+              'id':checkId,
+              'userPhone':userPhone,
+              'protocol':protocol,
+              'url':url,
+              'method':method,
+              'successCodes':successCodes,
+              'timeOutSeconds':timeOutSeconds,
+            }
+
+            //Persist this object to disk
+            _data.create('checks',checkId,checkObj, function(err){
+              if(!err){
+                //Add the check id to the users object
+                userData.checks = userChecks;
+                userData.checks.push(checkId);
+                //save the new user data
+                _data.update('users',userPhone,userData,function(err){
+                  if(!err){
+                    callback(200,checkObj)
+                  }else{
+                    callback(500,{'Error':'Internal server error'});
+                  }
+                });
+
+              }else{
+                callback(500,{'Error':'Could not create the check'});
+              }
+            });
+           }else{
+             callback(400,{'Error':'Max checks reached'});
+           }
+         }else{
+           callback(403);
+         }
+       });
+      }else{
+        callback(403,{'Error':'Unknown token'})
+      }
+    });
+  }else{
+    callback(400,{'Error':'Missing required values'});
+  }
+};
 // ping handler
 handlers.ping = function(data,callback){
     callback(200);
