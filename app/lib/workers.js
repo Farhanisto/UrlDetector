@@ -20,7 +20,7 @@
  workers.gatherAllChecks= function(){
   //get all the checks in the system
   _data.list('checks',function(err, checks){
-   if(!err && checks){
+   if(!err && checks && checks.length >0){
      checks.forEach(function(check) {
        //Read the check data
        _data.read('checks',check, function(err, originalCheckData){
@@ -61,8 +61,7 @@
      originalCheckData.url &&
      originalCheckData.method &&
      originalCheckData.successCodes &&
-     originalCheckData.timeOutSeconds){
-     
+     originalCheckData.timeOutSeconds){  
       workers.performCheck(originalCheckData);
   }else{
     console.log('Error getting the wrong data.');
@@ -184,7 +183,7 @@
  workers.loop = function(){
    setInterval(function(){
     workers.gatherAllChecks();
-   },1000*60);
+   },1000*5);
  }
  //workers init script
  workers.init = function(){
