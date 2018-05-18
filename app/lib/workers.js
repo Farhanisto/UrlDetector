@@ -10,6 +10,7 @@
  var http = require('http');
  var https = require('https');
  var url = require('url'); 
+ var helpers = require('./helpers');
 
 
  //instatiate the worker obj
@@ -47,13 +48,20 @@
   originalCheckData.protocol = typeof(originalCheckData.protocol) == 'string' && ['http','https'].indexOf(originalCheckData.protocol) >-1? originalCheckData.protocol: false;
   originalCheckData.url = typeof(originalCheckData.url) == 'string' && originalCheckData.url.trim().length >0 ? originalCheckData.url.trim() : false;
   originalCheckData.method = typeof(originalCheckData.method) == 'string' && ['get','put','post','delete'].indexOf(originalCheckData.method) >-1? originalCheckData.method: false;
-  originalCheckData.successCodes = typeof(originalCheckData.successCodes) == 'object' && originalCheckData.successCodes instanceof Array && originalCheckData.successCodes.length>0 ? originalCheckData.protocol: false;
+  originalCheckData.successCodes = typeof(originalCheckData.successCodes) == 'object' && originalCheckData.successCodes instanceof Array && originalCheckData.successCodes.length>0 ? originalCheckData.successCodes: false;
   originalCheckData.timeOutSeconds = typeof(originalCheckData.timeOutSeconds) == 'number' && originalCheckData.timeOutSeconds %1 ===0 ? originalCheckData.timeOutSeconds: false;
 
   //set the keys which were not gonna be set if the workers have never seen this check before
   originalCheckData.state= typeof(originalCheckData.state) == 'string' && ['up','down'].indexOf(originalCheckData.protocol) >-1? originalCheckData.state: 'down';
   originalCheckData.lastChecked = typeof(originalCheckData.lastChecked) == 'number' && originalCheckData.lastChecked >0 ? originalCheckData.lastChecked: false;
-
+ 
+  console.log(originalCheckData.id,
+  originalCheckData.userPhone,
+  originalCheckData.protocol,
+  originalCheckData.url,
+  originalCheckData.method,
+  originalCheckData.successCodes,
+  originalCheckData.timeOutSeconds)
   //If all the checks pass ,pass the data along to the next step in the process
   if(originalCheckData.id &&
      originalCheckData.userPhone &&
@@ -62,7 +70,7 @@
      originalCheckData.method &&
      originalCheckData.successCodes &&
      originalCheckData.timeOutSeconds){  
-      workers.performCheck(originalCheckData);
+    workers.performCheck(originalCheckData);
   }else{
     console.log('Error getting the wrong data.');
   }  
@@ -125,7 +133,7 @@
     //update the checkoutcome and pass the data along
     checkOutCome.error = {
       'error': true,
-      'value':timeout
+      'value':'timeout'
     };
     if(!outcomeSent){
       workers.processCheckOutcome(originalCheckData,checkOutCome);
@@ -153,7 +161,8 @@
 
    //save the updates to disk
 
-   _data.update('check',newCheckedData.id,newCheckedData,function(err){
+   _data.update('checks',newCheckedData.id,newCheckedData,function(err){
+     console.log('this is the err',err);
      if(!err){
        //Send the new check data to the next phase
        if(alertWarranted){
@@ -171,6 +180,7 @@
  workers.alerUserToStatusChange = function(newCheckedData){
    var msg = 'Alert'+ newCheckedData.method.toUpperCase() +''+newCheckedData.protocol +'://'+newCheckedData.url +'is currently'+newCheckedData.state;
    helpers.sendTwilioSms(newCheckedData.userPhone,msg,function(err){
+     console.log(err);
      if(!err){
       console.log('SUCCEESS'+msg);
      }else{
